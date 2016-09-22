@@ -7,8 +7,8 @@ class Node_process:
     def __init__(self, n):
         self.pipe = mp.Pipe()
         self.node = mp.Process(name='node {0}'.format(n),
-                                    target=node.node,
-                                    args=(e, self.pipe[1]))
+                                    target=node.main,
+                                    args=(e, self.pipe[1], n))
     def order(self, data):
         self.pipe[0].send(data)
 
@@ -20,7 +20,7 @@ if __name__ == '__main__':
     node_number = 2
     e = mp.Event()
     m = mp.Process(name='m', 
-                   target=medium.medium,
+                   target=medium.main,
                    args=(e,))
 
     node_list = []
