@@ -2,19 +2,21 @@ import sys
 import socket
 import select
 from threading import Timer
+import time
 
 
-# Settable parameters
+# # Settable parameters
 MTU = 1000 # Maximum Transmit Unit for this medium (B)
 RECV_BUFFER = 2*MTU # Receive buffer size
 
-def node():
+def node(e, pipe):
 
     s = connect_to_medium() # Connection
-    sys.stdout.write('Press ENTER key for transmitting a packet or type \'quit\' to end this program : '); sys.stdout.flush()
+    # sys.stdout.write('Press ENTER key for transmitting a packet or type \'quit\' to end this program : '); sys.stdout.flush()
 
     while 1:
-        socket_list = [sys.stdin, s]
+        # socket_list = [sys.stdin, s]
+        socket_list = [pipe, s]
 
         # Get the list sockets which are readable
         ready_to_read, ready_to_write, in_error = select.select(socket_list, [], [])
@@ -29,16 +31,22 @@ def node():
                 sys.exit()
               else:
                 print("\nReceive a packet : %s" % data)
-                sys.stdout.write('Press ENTER key for transmitting a packet or type \'quit\' to end this program. : '); sys.stdout.flush()
+                # sys.stdout.write('Press ENTER key for transmitting a packet or type \'quit\' to end this program. : '); sys.stdout.flush()
             else:
-              cmd = sys.stdin.readline()
+              cmd = pipe.recv() 
               if cmd == 'quit\n':
                 s.close()
                 sys.exit()
+              while chk_medium(e):
+                  time.sleep(0.5)
               trans_data = 'DATA' # Data will be stored in packet
               transmit(s,trans_data) # Transmit a data packet
-              sys.stdout.write('Press ENTER key for transmitting a packet or type \'quit\' to end this program. : '); sys.stdout.flush()
+              # sys.stdout.write('Press ENTER key for transmitting a packet or type \'quit\' to end this program. : '); sys.stdout.flush()
 
+
+def chk_medium(e):
+    return e.is_set()
+              
 # Connect a node to medium ----- recommand not to modify
 def connect_to_medium():
   host = '127.0.0.1' # Local host address
@@ -60,19 +68,19 @@ def connect_to_medium():
 # Make and transmit a data packet
 def transmit (s, trans_data):
 
-  packet = trans_data 
+  packet = trans_data
 
   if len(packet) > MTU:
     print('Cannot transmit a packet -----> packet size exceeds MTU')
   else:
     packet = packet + '0'*(MTU-(len(trans_data)))
-    s.send(packet)
+    s.send(packet.encode())
     print('Transmit a packet')
 
 # Extract data
 def extract_data(packet):
   i=0
-  for c in packet:
+  for c in packet.decode():
     if c == '0':
       break
     else:

@@ -22,7 +22,7 @@ BUSY = 'B'
 STATUS = IDLE # Status of Medium : I -> Idle, B -> Busy
 
 
-def medium():
+def medium(e):
 
     medium_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     medium_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -55,15 +55,17 @@ def medium():
               packet = sock.recv(RECV_BUFFER)
               if packet:
                 # Check medium here!
-                if STATUS == BUSY:
+                # if STATUS == BUSY:
+                if e.is_set():
                   print('Collision has happend on medium!')
                   t.cancel()
-                  Timer(MTU/BANDWIDTH+PDELAY,change_status).start() # Collided packet is still in medium
+                  Timer(MTU/BANDWIDTH+PDELAY,change_status, (e,)).start() # Collided packet is still in medium
                 # Collision occurs!
-                elif STATUS ==IDLE:
-                  change_status() #Change status to busy
+                # elif STATUS ==IDLE:
+                elif not e.is_set():
+                  change_status(e) #Change status to busy
                   # Message packet is being propagated to nodes through medium
-                  t=Timer(MTU/BANDWIDTH+PDELAY,forward_pkt, (medium_socket, sock, packet))
+                  t=Timer(MTU/BANDWIDTH+PDELAY,forward_pkt, (medium_socket, sock, packet, e))
                   t.start()
                 else:
                   print('Undefined status')
@@ -74,7 +76,8 @@ def medium():
                   continue
 
             # Exception
-            except:
+            except Exception as e:
+              print(e)
               if sock in SOCKET_LIST:
                 print("Error! Check Node (%s, %s)" % sock.getpeername())
                 SOCKET_LIST.remove(sock)
@@ -85,7 +88,7 @@ def medium():
         sys.exit()
 
 # Forward_pkt to all connected nodes exclude itself(source node)
-def forward_pkt (medium_socket, sock, message):
+def forward_pkt (medium_socket, sock, message, e):
  
     global STATUS
 
@@ -102,17 +105,21 @@ def forward_pkt (medium_socket, sock, message):
                     SOCKET_LIST.remove(socket)
 
     #Packet transmission is finished
-    change_status() #Change status to idle
+    change_status(e) #Change status to idle
 
 # Chaning medium status 
-def change_status():
+def change_status(e):
 
-    global STATUS
+    if e.is_set():
+        e.clear()
+    else:
+        e.set()
+    # global STATUS
 
-    if STATUS == 'B':
-       STATUS = 'I'
-    elif STATUS == 'I':
-       STATUS = 'B'
+    # if STATUS == 'B':
+    #    STATUS = 'I'
+    # elif STATUS == 'I':
+    #    STATUS = 'B'
 
 if __name__ == "__main__":
     sys.exit(medium())
